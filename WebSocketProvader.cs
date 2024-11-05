@@ -17,17 +17,10 @@ public class WebSocketProvader //Класс вебсокера
 {
     bool tempBool = true;
     byte a = 0;
-    ConvertAll convertAll;
     string? Price;
-    private readonly ClientWebSocket? clientSocket; //Клиент вебСокета
+    private readonly ClientWebSocket? clientSocket = new ClientWebSocket(); //Клиент вебСокета
     private string UriWebServer = "wss://stream.bybit.com/v5/public/spot"; //Uri сервера
-    public WebSocketProvader()
-    {
-        //Инициализация поля
-        clientSocket = new ClientWebSocket();
-    }
-
-    public async Task<string> RunWebSocket(string? symbol, CancellationToken cancellationToken,string SoundPrice,bool Notif = false) // Конект, отправка, получение ответа
+    public async Task<string> RunWebSocket(string? symbol, CancellationToken cancellationToken, string SoundPrice, bool Notif = false) // Конект, отправка, получение ответа
     {
         bool LogSoundPrice = double.TryParse(SoundPrice, out double LastSoundPrice);
         if (LogSoundPrice == false)
@@ -63,66 +56,62 @@ public class WebSocketProvader //Класс вебсокера
                         cancellationToken.ThrowIfCancellationRequested();
                     }
                     //Console.WriteLine(Encoding.UTF8.GetString(byffer, 0, result.Count)); //Получая данных с севера  
-                        Price = Encoding.UTF8.GetString(byffer); //Данное сообщение
-                        convertAll = new ConvertAll(Price);
-                        double lastPrice = convertAll.OnlyPriceReturn();
-                        string lastSymbol = convertAll.OnlySymbolReturn();
-                        string LastString = $"Криптовалютная пара: {lastSymbol} Фактическая цена: {lastPrice}";
-                        if (lastPrice != 0 && tempBool == true && Notif == true && LastSoundPrice != 0)
+                    Price = Encoding.UTF8.GetString(byffer); //Данное сообщение
+                    ConvertAll convertAll = new ConvertAll(Price); //Создаём объект преобразователя и получаем цену
+                    double? lastPrice = convertAll.OnlyPriceReturn();
+                    string? lastSymbol = convertAll.OnlySymbolReturn();
+                    string? LastString = $"Криптовалютная пара: {lastSymbol} Фактическая цена: {lastPrice}";
+                    if (lastPrice != 0 && tempBool == true && Notif == true && LastSoundPrice != 0)
+                    {
+                        // Разыне сценарии
+                        if (lastPrice > LastSoundPrice)
                         {
-                            // Разыне сценарии
-                            if (lastPrice > LastSoundPrice)
-                            {
-                                a = 1;
-                                tempBool = false;
-                            }
-                            else
-                            {
-                                a = 2;
-                                tempBool = false;
-                            }
+                            a = 1;
+                            tempBool = false;
                         }
-                        if (a == 1)
+                        else
                         {
-                            Console.WriteLine($"Цена факта - {lastPrice}\tЦена оповещения - {LastSoundPrice}");
-                            if (LastSoundPrice > lastPrice || lastPrice == LastSoundPrice)
-                            {
-                                Console.WriteLine("Сработал сценарий № 1");
-                                break; //Останавливаем цикл while
-                            }
-                        }
-                        if (a == 2)
-                        {
-                            Console.WriteLine($"Цена факта - {lastPrice}\tЦена оповещения - {SoundPrice}");
-                            if (LastSoundPrice < lastPrice || lastPrice == LastSoundPrice)
-                            {
-                                Console.WriteLine("Сработал сценарий № 2");
-                                break;
-                            }
+                            a = 2;
+                            tempBool = false;
                         }
                     }
-
+                    if (a == 1)
+                    {
+                        Console.WriteLine($"Цена факта - {lastPrice}\tЦена оповещения - {LastSoundPrice}");
+                        if (LastSoundPrice > lastPrice || lastPrice == LastSoundPrice)
+                        {
+                            Console.WriteLine("Сработал сценарий № 1");
+                            break; //Останавливаем цикл while
+                        }
+                    }
+                    if (a == 2)
+                    {
+                        Console.WriteLine($"Цена факта - {lastPrice}\tЦена оповещения - {SoundPrice}");
+                        if (LastSoundPrice < lastPrice || lastPrice == LastSoundPrice)
+                        {
+                            Console.WriteLine("Сработал сценарий № 2");
+                            break;
+                        }
+                    }
                 }
-                return $"Оповещение пользователя\nКриптопара: {symbol}\tЦена оповещения {SoundPrice} ";
             }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Вызвано исключеие\n{ex.Message}");
-                Console.ResetColor();
-                return $"";
-            }
-    } //Скобка конца метода RunWebSocket
- 
-    public async Task CloseFlow() // Закрываем поток
-    {
-        if (clientSocket!.State== WebSocketState.Open)
-        {
-            // Закрытие соединения, если оно все еще открыто
-            await clientSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+            return $"Оповещение пользователя\nКриптопара: {symbol}\tЦена оповещения {SoundPrice} ";
         }
-    }
- 
-
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Вызвано исключеие\n{ex.Message}");
+            Console.ResetColor();
+            return $"";
+        }
+        finally
+        {
+            if (clientSocket!.State == WebSocketState.Open)
+            {
+                // Закрытие соединения, если оно все еще открыто
+                await clientSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+            }
+        }
+    } //Скобка конца метода RunWebSocket
 }
 

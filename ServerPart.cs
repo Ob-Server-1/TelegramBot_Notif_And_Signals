@@ -12,5 +12,6 @@ public class ServerPart //Класс для серверной части
     public static string host = "https://api.bybit.com"; //Ссылка на сам сервер api 
     
     public string urlTickers = $"{host}/v5/market/tickers?category=spot&symbol=";
+    public string urlVolume = $"{host}/v5/market/kline?category=spot&interval=5&limit=15&symbol="; //Используем 5 минутный график,ставим SMA в 10 свечей
 }
 

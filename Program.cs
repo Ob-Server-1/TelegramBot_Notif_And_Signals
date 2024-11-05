@@ -101,9 +101,32 @@ async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
             string? lastResult = await provader.PriceUse(Pair);
             await bot.SendTextMessageAsync(msg.Chat, lastResult);
         }
-        else if (eventUse==EventUse.Notif)
+        else if (eventUse == EventUse.Signals)
         {
-            string SymbolAndNotif= msg.Text.ToString().ToUpper();
+            string SymbolAndSignals = msg.Text.ToString().ToUpper();
+            string[] Use = SymbolAndSignals.Split(" ");
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    CancellationToken cancellationToken = cancellationTokenSource.Token;
+                    WebSocketSignals socketSignals = new WebSocketSignals();
+                    string result = await socketSignals.Signals(Use[0], cancellationToken, Use[1]);
+                    await bot.SendTextMessageAsync(msg.Chat, result);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Служба сигналов была отключена");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Было выбрашено иссключение, сообщения ошибки - " + ex.Message);
+                }
+            });
+        }
+        else if (eventUse == EventUse.Notif)
+        {
+            string SymbolAndNotif = msg.Text.ToString().ToUpper();
             string[] Use = SymbolAndNotif.Split(" ");
             _ = Task.Run(async () =>
             {
@@ -121,12 +144,10 @@ async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
                 catch (Exception ex)
                 {
                     Console.WriteLine("Было выбрашено иссключение, сообщения ошибки - " + ex.Message);
-                } 
-                
+                }
             });
         }
         else Console.WriteLine($"Текст отправленный пользователем{msg.Text}");
-
     }
 }
 
@@ -162,7 +183,7 @@ async Task OnCommand(string command, string args, Message msg)
                 "Функция вызова цена была отменена");
             eventUse = EventUse.NoEvent;
             break;
-        case "/notif": 
+        case "/notif":
             await bot.SendTextMessageAsync(msg.Chat,
                 "Введите криптовалютную пару и затем цену оповещения через пробел\nПример использования: ADAUSDT 0.3532");
             eventUse = EventUse.Notif;
@@ -171,6 +192,16 @@ async Task OnCommand(string command, string args, Message msg)
             await bot.SendTextMessageAsync(msg.Chat,
                 "Функция оповещения была отменена");
             cancellationTokenSource.Cancel(); //Запускаем токен отмены
+            eventUse = EventUse.NoEvent;
+            break;
+        case "/signals":
+            await bot.SendTextMessageAsync(msg.Chat, "Введите криптовалютную пару и затем силу рынка через проблел\nПримечание есть" +
+                "три силы (активности рынка) 1-3, 1-Рынок активен 3-Очень активный рынок (иногда это просто сильные импульсы\n" +
+                "Пример запроса - BTCUSDT 2");
+            eventUse = EventUse.Signals;
+            break;
+        case "/signalsend":
+            await bot.SendTextMessageAsync(msg.Chat, "Функция генерации рыночных сигналов была отклчюена");
             eventUse = EventUse.NoEvent;
             break;
         default:

@@ -14,22 +14,26 @@ namespace ProjectMeta
     {
         string? OnlyPrice; //Строка для получения цены
         string? OnlySymbol; //Строка для получения криптопары
+        string? OnlyVolume; //Строка для получения объёма
+
         double resultPrice; //Окончательная цена
         string patternDeleteLiteral = "[A-Za-z,\",:, ]"; //Патерн для удаления букав
         string pattrernSymbol = "[\",:,symbol, ]"; //Паттерн для удаления ненужны символов для получения пары
         // Регулярное выражение для цены
-        Regex regexPrice = new Regex(@".lastprice.:..............", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        Regex regexPrice = new Regex(@".lastprice.:..............", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); //Поиск цены
         //Патерн для получение криптоПары
-        Regex regexSymbol = new Regex(@".symbol.:...........", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        Regex regexSymbol = new Regex(@".symbol.:...........", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); //Поиск криптопары
+        Regex regexVolume = new Regex(@".volume.:.............",RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); //Поиск объёма
         public ConvertAll(string Price) //Конструктор
         {
             //Регулярные коллекции
-            MatchCollection matches = regexPrice.Matches(Price);
+            MatchCollection match1 = regexPrice.Matches(Price);
             MatchCollection match2 = regexSymbol.Matches(Price);
+            MatchCollection match3 = regexVolume.Matches(Price);
             //
-            if (matches.Count > 0)
+            if (match1.Count > 0)
             {
-                foreach (Match match in matches)
+                foreach (Match match in match1)
                 {
                     OnlyPrice = match.Value.ToString();
                 }
@@ -41,10 +45,16 @@ namespace ProjectMeta
                     OnlySymbol = match.Value.ToString();
                 }
             }
+            if (match3.Count>0)
+            {
+                foreach (Match match in match3)
+                {
+                    OnlyVolume = match.Value.ToString();
+                }
+            }
         }
         public double OnlyPriceReturn() //Получаем на выход только цену
         {
-
             //Регулярное выражение которое позволяет заменить некоторые символ на ничто! в [] написан объект для изменения
             try
             { //Используем для обработки исключений
@@ -55,7 +65,7 @@ namespace ProjectMeta
             }
             catch (Exception ex)
             {
-                //Console.WriteLine("Ошибка данныех, повторите запрос");
+                Console.WriteLine(ex.Message);
                 return resultPrice;
             }
         }
@@ -67,10 +77,23 @@ namespace ProjectMeta
             }
             catch (Exception ex)
             {
-                //Console.WriteLine($"Ошибка запроса");
+                Console.WriteLine(ex.Message);
                 return OnlySymbol!;
             }
             return OnlySymbol;
+        }
+        public string OnlyVolumeReturn()
+        {
+            try
+            {
+                OnlyVolume = Regex.Replace(OnlyVolume!, patternDeleteLiteral, "");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return OnlyVolume!;
+            }
+            return OnlyVolume.Replace(".",",") ;
         }
     }
 }
