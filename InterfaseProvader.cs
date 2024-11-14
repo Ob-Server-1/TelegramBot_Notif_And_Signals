@@ -10,7 +10,7 @@ using ProjectMeta;
 
 public class InterfaseProvader()
 {
-    ConvertAll ConvertAllPrice; // Класс преобразований, Файл - ConvertPrice -> ProjectMeta
+    ConvertAll? ConvertAllPrice; // Класс преобразований, Файл - ConvertPrice -> ProjectMeta
     ServerPart serverPart = new ServerPart(); // Создаем класс Сервера
     public async Task<string> PriceAndSymbol(HttpClient? httpClient, string? pair) //Ассинхронный метод для передачи цены и криптопары
     {

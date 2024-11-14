@@ -12,8 +12,8 @@ namespace ProjectMeta;
 public class WebSocketSignals
 {
     public double control;
-    public string answer;
-    ConvertAll convertAll;
+    public string? answer;
+    ConvertAll? convertAll;
     private readonly ClientWebSocket? clientSocket; //Клиент вебСокета
     private string UriWebServer = "wss://stream.bybit.com/v5/public/spot"; //Uri сервера
     public WebSocketSignals()

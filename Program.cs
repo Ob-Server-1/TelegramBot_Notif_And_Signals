@@ -12,8 +12,9 @@ using Telegram.Bot.Types.ReplyMarkups; // Подключение для рабо
 // Получаем токен бота из переменных окружения или задаем его вручную. 
 // Токен необходим для аутентификации и взаимодействия с API Telegram.
 var token = Environment.GetEnvironmentVariable("TOKEN") ??
-    "Token"; //Вводим токен сюда,
+    "Токен!"; //Вводим токен сюда,
 
+//Конструктор токенов отмены, котоырй нужно как то адаптировать, чтобы я не могу завершать операции навсегда
 
 CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 // Создаем источник отмены, который позволяет отменить асинхронные операции при необходимости.
@@ -24,15 +25,17 @@ EventUse eventUse = EventUse.NoEvent;
 // Это точка входа для всех операций, которые мы можем выполнять с ботом.
 var bot = new TelegramBotClient(token);
 
+bool StopNotif = true; //Флаг отмены
+bool StopSignals = true;
 // Запрашиваем информацию о боте, чтобы подтвердить, что он запускается правильно.
 // Этот метод вернет объект, содержащий информацию о боте (например, его имя).
 var me = await bot.GetMeAsync();
 
 // Выводим в консоль имя пользователя бота, чтобы убедиться, что он запущен.
 // Это также даст пользователю информацию о том, что бот работает.
-
-Console.WriteLine($"Username : {me.Username}\nId: {me.Id} Бот начал работу");
-
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine($"UsernameBot: {me.Username}\nId: {me.Id} Бот начал работу");
+Console.ResetColor();
 // Начинаем получать обновления от Telegram.
 // Этот метод будет ждать новые сообщения и другие обновления от Telegram.
 // HandleUpdateAsync будет методом для обработки обновлений, 
@@ -73,6 +76,23 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
     // Проверяем, является ли обновление сообщением текста и не является ли оно пустым.
 }
 
+//Создаем вводной клавиатуру 
+async Task SendReplyKeyboard(long chatId)
+{
+    var keyboard = new ReplyKeyboardMarkup(new[] //Массив кнопок
+    {
+        new KeyboardButton[] { "Узнать цену криптопары" }, //1 Строка кнопок
+        new KeyboardButton[] { "Поставить оповещение цены","Отключить функцию оповещений" }, //2 Строка кнопок
+        new KeyboardButton[] { "Включить рыночные сигналы","Отключить функцию сигналов" }, //3 Строка кнопок
+        new KeyboardButton[] { "Список команд","О боте" } //4 Строка кнопок
+    })
+    {
+        ResizeKeyboard = true,
+        OneTimeKeyboard = false // Установка свойства OneTimeKeyboard в false
+    };
+    await bot.SendTextMessageAsync(chatId, "Выберите опцию:", replyMarkup: keyboard);
+}
+
 
 // Метод для обработки сообщений, полученных ботом.
 async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
@@ -90,6 +110,60 @@ async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
         var command = text[..space].ToLower();
         await OnCommand(command, text[space..].TrimStart(), msg);
     }
+    else if (text == "Узнать цену криптопары")
+    {
+        await bot.SendTextMessageAsync(msg.Chat,
+                "Введите криптовалютные пары, через пробел\nПример ввода - ADAUSDT BTCUSDT APTUSDT");
+        eventUse = EventUse.CheckPrice;
+    }
+    else if (text == "Поставить оповещение цены")
+    {
+        StopNotif = true;
+        await bot.SendTextMessageAsync(msg.Chat,
+            "Введите криптовалютную пару и затем цену оповещения через пробел\nПример использования: ADAUSDT 0.3532");
+        eventUse = EventUse.Notif;
+    }
+    else if (text == "Отключить функцию оповещений")
+    {
+        await bot.SendTextMessageAsync(msg.Chat,
+        "Функция оповещения была отмена");
+        eventUse = EventUse.NoEvent;
+        StopNotif = false;
+    }
+    else if (text == "О боте")
+    {
+        await bot.SendTextMessageAsync(msg.Chat, "Данный бот получает данные с криптовалютной биржи " +
+            "bybit и обрабатыввает её. Чтобы получше ознакомиться с " +
+            "функционалом нажмите на кнопку \"Список команд\" или введите команду /help.");
+    }
+    else if (text == "Включить рыночные сигналы")
+    {
+        await bot.SendTextMessageAsync(msg.Chat, "Введите криптовалютную пару и затем силу (активность) рынка через проблел\n" +
+            "Примечание: Активность рынка есть 3-x уровней\n" +
+            "1) Рынок активен\n" +
+            "2) Рынок очень активен\n" +
+            "3) Рынок крайняя активность\n" +
+            "Важный момент: Есть вероятность ложных сигналов, в основном из-за краткосрочных импульсных движений\n" +
+            "Пример запроса: BTCUSDT 1");
+        StopSignals = true;
+        eventUse = EventUse.Signals;
+    }
+    else if (text == "Отключить функцию сигналов")
+    {
+        await bot.SendTextMessageAsync(msg.Chat, "Функция генерации рыночных сигналов была отклчюена");
+        StopSignals = false;
+        eventUse = EventUse.NoEvent;
+    }
+    else if (text == "Список команд")
+    {
+        await bot.SendTextMessageAsync(msg.Chat, "/checkprice -Функция вызова цены криптопары\n" +
+            "/notif -Постановка оповещения цены\n" +
+            "/notifend -Отключения функции оповещения цены\n" +
+            "/signals - Постановка рыночного сигнала определенной криптопары\n" +
+            "/signalsend - Отключение функции рыночных сигналов\n" +
+            "/help - Список всех команд");
+        eventUse = EventUse.NoEvent;
+    }
     // Если сообщение не является командой, обрабатываем его как обычный текст.
     else
     {
@@ -101,18 +175,33 @@ async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
             string? lastResult = await provader.PriceUse(Pair);
             await bot.SendTextMessageAsync(msg.Chat, lastResult);
         }
-        else if (eventUse == EventUse.Signals)
+        else if (eventUse == EventUse.Signals) //Функциия рыночных сигналов
         {
             string SymbolAndSignals = msg.Text.ToString().ToUpper();
             string[] Use = SymbolAndSignals.Split(" ");
+            string? result = null;
             _ = Task.Run(async () =>
             {
                 try
                 {
+                    if (Use[1] == "1" || Use[1] == "2" || Use[1] == "3")
+                    {
+                        await bot.SendTextMessageAsync(msg.Chat, $"Функция рыночных оповещений была поставлена\nКриптопары: {Use[0]} " +
+                                                                 $"Сила рынка {Use[1]}");
+                    }
+                    else
+                    {
+                        Use[1] = "1";
+                        await bot.SendTextMessageAsync(msg.Chat, $"Функция рыночных оповещений была поставлена\nКриптопары: {Use[0]} " +
+                            $"Сила рынка {Use[1]}");
+                    }
                     CancellationToken cancellationToken = cancellationTokenSource.Token;
                     WebSocketSignals socketSignals = new WebSocketSignals();
-                    string result = await socketSignals.Signals(Use[0], cancellationToken, Use[1]);
-                    await bot.SendTextMessageAsync(msg.Chat, result);
+                    result = await socketSignals.Signals(Use[0], cancellationToken, Use[1]);
+                    if (StopSignals)
+                    {
+                        await bot.SendTextMessageAsync(msg.Chat, result);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -128,18 +217,24 @@ async Task OnMessage(Message msg, UpdateType type, ITelegramBotClient botClient)
         {
             string SymbolAndNotif = msg.Text.ToString().ToUpper();
             string[] Use = SymbolAndNotif.Split(" ");
+            string? result = null;
             _ = Task.Run(async () =>
             {
                 try
                 {
+                    await bot.SendTextMessageAsync(msg.Chat, $"Функция оповещения цены поставлена\nКриптопара: {Use[0]} " +
+                        $"Цена оповещения {Use[1]}");
                     CancellationToken cancellationToken = cancellationTokenSource.Token;
-                    WebSocketProvader socket = new WebSocketProvader();
-                    string result = await socket.RunWebSocket(Use[0], cancellationToken, Use[1], true);
-                    await bot.SendTextMessageAsync(msg.Chat, result);
+                    WebSocketNotification socket = new WebSocketNotification();
+                    result = await socket.Notif(Use[0], cancellationToken, Use[1], true);
+                    if (StopNotif)
+                    {
+                        await bot.SendTextMessageAsync(msg.Chat, result);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine("Служба оповещений была отключена");
+                    Console.WriteLine("Служба сигналов была отключена");
                 }
                 catch (Exception ex)
                 {
@@ -170,38 +265,47 @@ async Task OnCommand(string command, string args, Message msg)
     {
         case "/start":
             // Если команда "/start", отправляем приветственное сообщение в чат.
-            await bot.SendTextMessageAsync(msg.Chat, "Команды\n /checkprice -Получение фактический цен /checkpriceend -Отключаем эту команду" +
-                " /notif -ставим оповещение криптопары и цены /notifend -отключаем эту команду");
+            await SendReplyKeyboard(msg.Chat.Id);
             break;
         case "/checkprice":
             await bot.SendTextMessageAsync(msg.Chat,
                 "Введите криптовалютные пары, через пробел\nПример ввода - ADAUSDT BTCUSDT APTUSDT");
             eventUse = EventUse.CheckPrice;
             break;
-        case "/checkpriceend":
-            await bot.SendTextMessageAsync(msg.Chat,
-                "Функция вызова цена была отменена");
-            eventUse = EventUse.NoEvent;
-            break;
         case "/notif":
+            StopNotif = true;
             await bot.SendTextMessageAsync(msg.Chat,
                 "Введите криптовалютную пару и затем цену оповещения через пробел\nПример использования: ADAUSDT 0.3532");
             eventUse = EventUse.Notif;
             break;
         case "/notifend":
             await bot.SendTextMessageAsync(msg.Chat,
-                "Функция оповещения была отменена");
-            cancellationTokenSource.Cancel(); //Запускаем токен отмены
+                "Функция оповещения была отмена");
             eventUse = EventUse.NoEvent;
+            StopNotif = false;
             break;
         case "/signals":
-            await bot.SendTextMessageAsync(msg.Chat, "Введите криптовалютную пару и затем силу рынка через проблел\nПримечание есть" +
-                "три силы (активности рынка) 1-3, 1-Рынок активен 3-Очень активный рынок (иногда это просто сильные импульсы\n" +
-                "Пример запроса - BTCUSDT 2");
+            await bot.SendTextMessageAsync(msg.Chat, "Введите криптовалютную пару и затем силу (активность) рынка через проблел\n" +
+                "Примечание: Активность рынка есть 3-x уровней\n" +
+                "1) Рынок активен\n" +
+                "2) Рынок очень активен\n" +
+                "3) Рынок крайняя активность\n" +
+                "Важный момент: Есть вероятность ложных сигналов, в основном из-за краткосрочных импульсных движений\n" +
+                "Пример запроса: APTUSDT 2");
             eventUse = EventUse.Signals;
             break;
         case "/signalsend":
             await bot.SendTextMessageAsync(msg.Chat, "Функция генерации рыночных сигналов была отклчюена");
+            StopSignals = false;
+            eventUse = EventUse.NoEvent;
+            break;
+        case "/help":
+            await bot.SendTextMessageAsync(msg.Chat, "/checkprice -Функция вызова цены криптопары\n" +
+        "/notif - Постановка оповещения цены\n" +
+        "/notifend - Отключения функции оповещения цены\n" +
+        "/signals - Постановка рыночного сигнала определенной криптопары\n" +
+        "/signalsend - Отключение функции рыночных сигналов\n" +
+        "/help - Список всех команд");
             eventUse = EventUse.NoEvent;
             break;
         default:
@@ -211,16 +315,13 @@ async Task OnCommand(string command, string args, Message msg)
     }
 }
 
-enum EventUse
+enum EventUse //С помощью состояний можем запуускать ассинхронные методы
 {
     CheckPrice,
     Notif,
     Signals,
     NoEvent
 }
-
-
-
 
 
 
